@@ -32,6 +32,7 @@
 #![feature(naked_functions)]
 #![panic_runtime]
 #![feature(panic_runtime)]
+#![feature(global_asm)]
 
 use alloc::boxed::Box;
 use core::any::Any;
