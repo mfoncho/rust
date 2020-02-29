@@ -48,7 +48,6 @@
 
 use alloc::boxed::Box;
 use core::any::Any;
-use core::ptr;
 
 use crate::dwarf::eh::{self, EHAction, EHContext};
 use libc::{c_int, uintptr_t};
@@ -81,10 +80,6 @@ pub unsafe fn panic(data: Box<dyn Any + Send>) -> u32 {
             super::__rust_drop_panic();
         }
     }
-}
-
-pub fn payload() -> *mut u8 {
-    ptr::null_mut()
 }
 
 pub unsafe fn cleanup(ptr: *mut u8) -> Box<dyn Any + Send> {
@@ -331,6 +326,27 @@ unsafe fn find_eh_action(
 
 // See docs in the `unwind` module.
 #[cfg(all(
+    not(bootstrap),
+    target_os = "windows",
+    any(target_arch = "x86", target_arch = "x86_64"),
+    target_env = "gnu"
+))]
+global_asm! {
+    r#"
+    .def _rust_eh_unwind_resume;
+    .scl 2;
+    .type 32;
+    .endef
+    .globl _rust_eh_unwind_resume
+    .p2align 4, 0x90
+_rust_eh_unwind_resume:
+    .cfi_startproc
+    jmp __Unwind_Resume
+    .cfi_endproc
+    "#
+}
+#[cfg(all(
+    bootstrap,
     target_os = "windows",
     any(target_arch = "x86", target_arch = "x86_64"),
     target_env = "gnu"
@@ -340,6 +356,7 @@ unsafe fn find_eh_action(
 unsafe extern "C" fn rust_eh_unwind_resume(panic_ctx: *mut u8) -> ! {
     uw::_Unwind_Resume(panic_ctx as *mut uw::_Unwind_Exception);
 }
+
 
 // Frame unwind info registration
 //
